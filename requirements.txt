@@ -5,6 +5,7 @@ numpy
 pillow
 pytest
 httpx
+gradio
 # Optional, for CLIP grounding (SAFESIGHT_GROUNDER=clip):
 # torch
 # transformers
