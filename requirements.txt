@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+numpy
+pillow
+pytest
+httpx
+# Optional, for CLIP grounding (SAFESIGHT_GROUNDER=clip):
+# torch
+# transformers

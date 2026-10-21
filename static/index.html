@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SafeSight AI – claim checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f7f4;--ink:#14213d;--mut:#55607a;--card:#fff;--line:#d5d9e2;--ok:#1f6f4a;--warn:#8a5a00;--bad:#a3281d;--accent:#14213d}
+@media(prefers-color-scheme:dark){:root{--bg:#10151f;--ink:#eef1f7;--mut:#a3adc2;--card:#182030;--line:#2c3750;--ok:#6fd1a2;--warn:#f0c15a;--bad:#ff8f85;--accent:#eef1f7}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 "Atkinson Hyperlegible",system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:28px 18px 60px}h1{font-size:1.9rem;margin:0 0 4px}p.sub{color:var(--mut);margin:0 0 22px;max-width:60ch}
+label{display:block;font-weight:700;margin:16px 0 6px}textarea,input[type=text]{width:100%;padding:12px;border:2px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
+textarea{min-height:110px}:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}button{font:inherit;font-weight:700;padding:11px 18px;border-radius:8px;border:2px solid var(--accent);background:var(--accent);color:var(--bg);cursor:pointer}
+button.alt{background:transparent;color:var(--ink)}
+#out{margin-top:30px}.spoken{border-left:6px solid var(--accent);padding:10px 16px;background:var(--card);font-size:1.15rem}
+.claim{border:2px solid var(--line);background:var(--card);border-radius:10px;padding:14px 16px;margin-top:14px}
+.claim h3{margin:0 0 6px;font-size:1.05rem}.badge{display:inline-block;padding:2px 10px;border-radius:99px;font-weight:700;border:2px solid currentColor;margin-right:8px}
+.confirm{color:var(--ok)}.hedge{color:var(--warn)}.abstain{color:var(--bad)}
+table{border-collapse:collapse;width:100%;margin-top:8px;font-size:.92rem}td{padding:4px 8px;border-top:1px solid var(--line)}td:first-child{color:var(--mut);width:38%}
+.note{color:var(--mut);font-size:.9rem;margin-top:26px}
+</style></head><body><main>
+<h1>SafeSight AI</h1>
+<p class="sub">Paste what the vision model said about a scene. Each claim is risk-scored, checked against the scene, and then confirmed, hedged, or withheld.</p>
+<form id="f">
+<label for="d">Model description</label><textarea id="d" required>The path ahead is clear. A bicycle is parked on your left. The jacket is red.</textarea>
+<label for="t">What is really in the scene (comma-separated tags)</label><input type="text" id="t" value="doorway, step, jacket, red">
+<label for="i">Scene photo (optional, used when CLIP grounding is on)</label><input type="file" id="i" accept="image/*">
+<div class="row"><button type="submit">Check claims</button><button type="button" class="alt" id="s">Read result aloud</button>
+<button type="button" class="alt" data-d="The exit sign is above the door." data-t="wall">Example: missing exit sign</button>
+<button type="button" class="alt" data-d="The path ahead is clear." data-t="clear, sidewalk">Example: true clearance</button></div>
+</form>
+<section id="out" aria-live="polite"></section>
+<p class="note">Research prototype. Not a certified navigation aid; use it alongside a cane, guide dog, or a sighted helper.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);let last="";
+document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{$("d").value=b.dataset.d;$("t").value=b.dataset.t});
+$("f").onsubmit=async e=>{e.preventDefault();const fd=new FormData();fd.append("description",$("d").value);fd.append("scene_tags",$("t").value);
+ if($("i").files[0])fd.append("image",$("i").files[0]);
+ $("out").textContent="Checking…";
+ try{const r=await fetch("/api/analyze",{method:"POST",body:fd});if(!r.ok)throw new Error(r.status);const j=await r.json();render(j)}
+ catch(err){$("out").textContent="Could not reach the server ("+err.message+"). Check that the backend is running and try again."}};
+function render(j){last=j.spoken;const o=$("out");o.innerHTML="";
+ const s=document.createElement("div");s.className="spoken";s.textContent=j.spoken;o.append(s);
+ j.claims.forEach(c=>{const d=document.createElement("div");d.className="claim";
+  const rows=[["Type / tier",c.type+" / tier "+c.tier],["Fused risk R",c.R],["Grounding support",c.support??"not checked"],["Refined risk × hazard",(c.R_refined*c.H).toFixed(3)],["Gate fired",c.gate?"yes – steering applied":"no"],["Why",c.why]];
+  d.innerHTML=`<h3><span class="badge ${c.mode}">${c.mode}</span></h3><div></div><table>`+rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("")+"</table>";
+  d.children[1].textContent=c.claim;o.append(d)})}
+$("s").onclick=()=>{if(last){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(last))}};
+</script></body></html>
